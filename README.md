@@ -60,6 +60,14 @@ nix-shell
 
 - The Nix package manager with the experimental feature `flakes` and `nix-command`  enable .
 
+How to install it in any Unix system in  <https://nixos.org/download/> and to enable flakes:
+
+```nix
+Add the following to ~/.config/nix/nix.conf or /etc/nix/nix.conf:
+
+experimental-features = nix-command flakes
+```
+
 ### What is Nix Develop?
 
 nix develop is the modern, reproducible approach to development environments using Nix Flakes. It creates isolated environments with pinned, exact versions of all dependencies.
