@@ -18,6 +18,8 @@
       dbPassword = "123";
       dbName = "NixDB";
       dbPort = "5432";
+      dbRunDir = "/tmp/pg_$(id -u)";
+      dbData = "$PWD/.pgdata";
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -25,7 +27,7 @@
         ];
 
         shellHook = ''
-          export PGDATA="$PWD/.pgdata"
+          export PGDATA=${dbData}
           export PGPORT=${dbPort}
 
           # Database credentials
@@ -34,7 +36,7 @@
           export DB_NAME=${dbName}
 
           # Create the system directory PostgreSQL expects for locks
-          export PGRUNDIR="/tmp/pg_$(id -u)"
+          export PGRUNDIR=${dbRunDir}
           mkdir -p "$PGRUNDIR"
           chmod 700 "$PGRUNDIR"
 
@@ -96,9 +98,10 @@
               echo "Password: $DB_PASSWORD"
               echo "Port: $PGPORT"
               echo ""
+              echo "Database Information in: $PGDATA"
+              echo ""
               echo "Connection strings:"
               echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
-
               echo ""
               echo "Connect with: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
             else
@@ -112,16 +115,6 @@
       };
 
       apps = {
-        start = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "start-postgres" ''
-            export PGDATA="$PWD/.pgdata"
-            export PGRUNDIR="/tmp/pg_$(id -u)"
-            mkdir -p "$PGRUNDIR"
-            pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k $PGRUNDIR"
-          '');
-        };
-
         stop = {
           type = "app";
           program = toString (pkgs.writeShellScript "stop-postgres" ''
