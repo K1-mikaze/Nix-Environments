@@ -13,6 +13,11 @@
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
+
+      dbUser = "nix";
+      dbPassword = "123";
+      dbName = "NixDB";
+      dbPort = 5432;
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -21,12 +26,12 @@
 
         shellHook = ''
           export PGDATA="$PWD/.pgdata"
-          export PGPORT=5432
+          export PGPORT=${dbPort}
 
           # Database credentials
-          export DB_USER="nix_user"
-          export DB_PASSWORD="nix_pass"
-          export DB_NAME="nix_db"
+          export DB_USER=${dbUser}
+          export DB_PASSWORD=${dbPassword}
+          export DB_NAME=${dbName}
 
           # Create the system directory PostgreSQL expects for locks
           export PGRUNDIR="/tmp/pg_$(id -u)"
@@ -125,24 +130,13 @@
           '');
         };
 
-        # Connect to the database
-        connect = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "connect-postgres" ''
-            export PGRUNDIR="/tmp/pg_$(id -u)"
-            export DB_USER="nixdocs_user"
-            export DB_NAME="nixdocs"
-            psql -h "$PGRUNDIR" -U "$DB_USER" -d "$DB_NAME"
-          '');
-        };
-
         # Grant additional permissions to existing user
         grant-permissions = {
           type = "app";
           program = toString (pkgs.writeShellScript "grant-permissions" ''
             export PGRUNDIR="/tmp/pg_$(id -u)"
-            export DB_USER="nixdocs_user"
-            export DB_NAME="nixdocs"
+            export DB_USER=${dbUser}
+            export DB_NAME=${dbName}
 
             echo "Granting superuser privileges to $DB_USER..."
             psql -h "$PGRUNDIR" postgres -c "ALTER USER $DB_USER WITH SUPERUSER CREATEDB CREATEROLE;"
@@ -164,7 +158,7 @@
               pg_ctl stop
             fi
             rm -rf "$PGDATA"
-            echo "Database reset complete. Run 'nix develop' to reinitialize."
+            echo "Database reset complete."
           '');
         };
       };
