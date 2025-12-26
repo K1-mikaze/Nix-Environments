@@ -24,9 +24,9 @@
           export PGPORT=5432
 
           # Database credentials
-          export DB_USER="nixdocs_user"
-          export DB_PASSWORD="nixdocs_pass"
-          export DB_NAME="nixdocs"
+          export DB_USER="nix_user"
+          export DB_PASSWORD="nix_pass"
+          export DB_NAME="nix_db"
 
           # Create the system directory PostgreSQL expects for locks
           export PGRUNDIR="/tmp/pg_$(id -u)"
@@ -92,13 +92,8 @@
               echo "Port: $PGPORT"
               echo ""
               echo "Connection strings:"
-              echo "  JDBC: jdbc:postgresql://localhost:$PGPORT/$DB_NAME"
               echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
 
-              echo "Spring Boot Connection:"
-              echo "  spring.datasource.url=jdbc:mysql://localhost:$PGPORT/$DB_NAME"
-              echo "  spring.datasource.username=$DB_USER"
-              echo "  spring.datasource.password=$DB_PASSWORD"
               echo ""
               echo "Connect with: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
             else

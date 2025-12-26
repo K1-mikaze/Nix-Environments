@@ -1,13 +1,14 @@
 # Nix Environments
 
 This repository focuses on making developer environment setup with Nix easier and more accessible.
+
 ## Nix Shells
 
-### Requirements 
+### Requirements
 
 - The Nix package manager.
 
-How to install it in any Unix system in  <https://nixos.org/download/> 
+How to install it in any Unix system in <https://nixos.org/download/>
 
 ### What are Nix Shells?
 
@@ -29,7 +30,7 @@ pkgs.mkShell {
     nodejs
     git
   ];
-  
+
   shellHook = ''
     echo "Environment ready!"
   '';
@@ -52,15 +53,15 @@ nix-shell
 
 - Clean System: No global package pollution
 
-**Limitation:**  Uses whatever nixpkgs channel is currently active on your system.
+**Limitation:** Uses whatever nixpkgs channel is currently active on your system.
 
 ## Nix Develop (Flakes)
 
-### Requirements 
+### Requirements
 
-- The Nix package manager with the experimental feature `flakes` and `nix-command`  enable .
+- The Nix package manager with the experimental feature `flakes` and `nix-command` enable .
 
-How to install it in any Unix system in  <https://nixos.org/download/> and to enable flakes:
+How to install it in any Unix system in <https://nixos.org/download/> and to enable flakes:
 
 ```nix
 Add the following to ~/.config/nix/nix.conf or /etc/nix/nix.conf:
@@ -77,6 +78,7 @@ Think of it as a "version-controlled, reproducible toolbox" that guarantees ever
 ### How Nix Develop Works
 
 Nix Develop uses a flake.nix file with locked versions:
+
 ```nix
 # flake.nix
 {
@@ -95,7 +97,7 @@ Nix Develop uses a flake.nix file with locked versions:
           nodejs_18  # Exact version
           postgresql_15
         ];
-        
+
         shellHook = ''
           echo "🐚 Reproducible environment ready!"
         '';
@@ -132,20 +134,21 @@ nix develop
 
 # Current Available
 
-
 ## Flakes
 
 ### Databases
-| Name | Path |
-| -------------- | --------------- |
-| PostgreSQL | [postgresql](./flakes/database/postgresql/flake.nix)|
-| MySQL | [mariadb](./flakes/database/mysql/flake.nix)|
+
+| Name       | Path                                                 |
+| ---------- | ---------------------------------------------------- |
+| PostgreSQL | [postgresql](./flakes/database/postgresql/flake.nix) |
+| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         |
 
 ### Programming Languages
 
-| Name | Path |
-| -------------- | --------------- |
-| Rust | [rust](./flakes/language/rust/flake.nix)|
+| Name | Path                                     | Description                                 |
+| ---- | ---------------------------------------- | ------------------------------------------- |
+| Rust | [rust](./flakes/language/rust/flake.nix) | Environment for Rust Development            |
+| Dart | [dart](./flakes/language/dart/flake.nix) | Environment for Flutter Android Development |
 
 ## Nix Shell
 
