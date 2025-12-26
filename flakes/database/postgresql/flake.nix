@@ -17,7 +17,7 @@
       dbUser = "nix";
       dbPassword = "123";
       dbName = "NixDB";
-      dbPort = 5432;
+      dbPort = "5432";
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
