@@ -15,7 +15,7 @@
       pkgs = nixpkgs.legacyPackages.${system};
 
       PGRUNDIR = "/tmp/pg_$(id -u)";
-      PGDATA = "(pwd)/.pgdata";
+      PGDATA = "$(pwd)/.pgdata";
       PGPORT = "5432";
       DB_USER = "nix_user";
       DB_PASSWORD = "nix_pass";
