@@ -138,10 +138,10 @@ nix develop
 
 ### Databases
 
-| Name       | Path                                                 |
-| ---------- | ---------------------------------------------------- |
-| PostgreSQL | [postgresql](./flakes/database/postgresql/flake.nix) |
-| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         |
+| Name       | Path                                                 | Command                                                                      |
+| ---------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| PostgreSQL | [postgresql](./flakes/database/postgresql/flake.nix) | nix develop github:K1-mikaze/Nix-Environments?dir=flakes/database/postgresql |
+| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         | nix develop github:K1-mikaze/Nix-Environments?dir=flakes/database/mysql      |
 
 ### Programming Languages
 
