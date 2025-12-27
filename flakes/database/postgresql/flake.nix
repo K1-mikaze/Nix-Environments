@@ -2,7 +2,7 @@
   description = "PostgreSQL database environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -14,12 +14,12 @@
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
 
-      dbUser = "nix";
-      dbPassword = "123";
-      dbName = "NixDB";
-      dbPort = "5432";
-      dbRunDir = "/tmp/pg_$(id -u)";
-      dbData = "$PWD/.pgdata";
+      PGRUNDIR = "/tmp/pg_$(id -u)";
+      PGDATA = "(pwd)/.pgdata";
+      PGPORT = "5432";
+      DB_USER = "nix_user";
+      DB_PASSWORD = "nix_pass";
+      DB_NAME = "nix_db";
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -27,16 +27,16 @@
         ];
 
         shellHook = ''
-          export PGDATA=${dbData}
-          export PGPORT=${dbPort}
+          export PGDATA="${PGDATA}"
+          export PGPORT="${PGPORT}"
 
           # Database credentials
-          export DB_USER=${dbUser}
-          export DB_PASSWORD=${dbPassword}
-          export DB_NAME=${dbName}
+          export DB_USER="${DB_USER}"
+          export DB_PASSWORD="${DB_PASSWORD}"
+          export DB_NAME="${DB_NAME}"
 
           # Create the system directory PostgreSQL expects for locks
-          export PGRUNDIR=${dbRunDir}
+          export PGRUNDIR="${PGRUNDIR}"
           mkdir -p "$PGRUNDIR"
           chmod 700 "$PGRUNDIR"
 
@@ -92,16 +92,15 @@
             echo "Using runtime directory: $PGRUNDIR"
 
             if pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k $PGRUNDIR"; then
-              echo "PostgreSQL started successfully!"
+              echo "===> PostgreSQL started successfully!"
               echo "Database: $DB_NAME"
               echo "Username: $DB_USER (SUPERUSER)"
               echo "Password: $DB_PASSWORD"
               echo "Port: $PGPORT"
               echo ""
-              echo "Database Information in: $PGDATA"
-              echo ""
               echo "Connection strings:"
               echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
+
               echo ""
               echo "Connect with: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
             else
@@ -109,7 +108,18 @@
               cat "$PGDATA/postgres.log"
             fi
           else
-            echo "PostgreSQL is already running"
+            echo " ==> PostgreSQL is already running"
+
+            echo "Database: ${DB_NAME}"
+            echo "Username: ${DB_USER} (SUPERUSER)"
+            echo "Password: ${DB_PASSWORD}"
+            echo "Port: ${PGPORT}"
+            echo ""
+            echo "Connection strings:"
+            echo "  URL: postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${PGPORT}/${DB_NAME}"
+
+            echo ""
+            echo "Connect with: psql -h $PGRUNDIR -U ${DB_USER} -d ${DB_NAME}"
           fi
         '';
       };
@@ -118,26 +128,8 @@
         stop = {
           type = "app";
           program = toString (pkgs.writeShellScript "stop-postgres" ''
-            export PGDATA="$PWD/.pgdata"
+            export PGDATA=${PGDATA}
             pg_ctl stop
-          '');
-        };
-
-        # Grant additional permissions to existing user
-        grant-permissions = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "grant-permissions" ''
-            export PGRUNDIR="/tmp/pg_$(id -u)"
-            export DB_USER=${dbUser}
-            export DB_NAME=${dbName}
-
-            echo "Granting superuser privileges to $DB_USER..."
-            psql -h "$PGRUNDIR" postgres -c "ALTER USER $DB_USER WITH SUPERUSER CREATEDB CREATEROLE;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "GRANT ALL ON SCHEMA public TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO $DB_USER;"
-            echo "All permissions granted to $DB_USER!"
           '');
         };
 
@@ -145,13 +137,13 @@
         reset = {
           type = "app";
           program = toString (pkgs.writeShellScript "reset-postgres" ''
-            export PGDATA="$PWD/.pgdata"
-            export PGRUNDIR="/tmp/pg_$(id -u)"
+            export PGDATA=${PGDATA}
+            export PGRUNDIR=${PGRUNDIR}
             if pg_ctl status > /dev/null 2>&1; then
               pg_ctl stop
             fi
             rm -rf "$PGDATA"
-            echo "Database reset complete."
+            echo "Database reset complete. Run 'nix develop' to reinitialize."
           '');
         };
       };
