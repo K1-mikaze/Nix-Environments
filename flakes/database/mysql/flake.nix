@@ -13,6 +13,11 @@
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
+
+      DB_USER = "dbUser";
+      DB_PASSWORD = "123";
+      DB_PORT = "3306";
+      DB_NAME = "dev";
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -25,12 +30,12 @@
         shellHook = ''
           export DB_DATA_DIR="$PWD/.dbdata"
           export DB_SOCKET_DIR="/tmp/mariadb_$(id -u)"
-          export DB_PORT=3306
+          export DB_PORT=${DB_PORT}
 
           # Database credentials
-          export DB_USER="k1"
-          export DB_PASSWORD="123"
-          export DB_NAME="academia"
+          export DB_USER=${DB_USER}
+          export DB_PASSWORD=${DB_PASSWORD}
+          export DB_NAME=${DB_NAME}
 
           # Create directories
           mkdir -p "$DB_SOCKET_DIR"
@@ -209,9 +214,9 @@
           program = toString (pkgs.writeShellScript "start-mariadb" ''
             export DB_DATA_DIR="$PWD/.dbdata"
             export DB_SOCKET_DIR="/tmp/mariadb_$(id -u)"
-            export DB_PORT=3306
-            export DB_USER="mariadb_user"
-            export DB_PASSWORD="mariadb_pass"
+            export DB_PORT=${DB_PORT}
+            export DB_USER=${DB_USER}
+            export DB_PASSWORD=${DB_PASSWORD}
 
             echo "🚀 Starting MariaDB..."
             mysqld \
@@ -234,9 +239,9 @@
           type = "app";
           program = toString (pkgs.writeShellScript "stop-mariadb" ''
             export DB_SOCKET_DIR="/tmp/mariadb_$(id -u)"
-            export DB_PORT=3306
-            export DB_USER="mariadb_user"
-            export DB_PASSWORD="mariadb_pass"
+            export DB_PORT=${DB_PORT}
+            export DB_USER=${DB_USER}
+            export DB_PASSWORD=${DB_PASSWORD}
 
             echo "🧹 Stopping MariaDB..."
             if [ -f "$DB_SOCKET_DIR/mysql.pid" ]; then
@@ -250,43 +255,12 @@
           '');
         };
 
-        connect = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "connect-mariadb" ''
-            export DB_PORT=3306
-            export DB_USER="mariadb_user"
-            export DB_PASSWORD="mariadb_pass"
-            export DB_NAME="mariadb_db"
-
-            mysql -h 127.0.0.1 -P $DB_PORT -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME"
-          '');
-        };
-
-        grant-permissions = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "grant-permissions-mariadb" ''
-            export DB_PORT=3306
-            export DB_USER="mariadb_user"
-            export DB_PASSWORD="mariadb_pass"
-            export DB_NAME="mariadb_db"
-
-            echo "🔧 Granting superuser privileges to $DB_USER..."
-            mysql -h 127.0.0.1 -P $DB_PORT -u root -e "
-              GRANT ALL PRIVILEGES ON *.* TO '$DB_USER'@'localhost' WITH GRANT OPTION;
-              GRANT ALL PRIVILEGES ON *.* TO '$DB_USER'@'%' WITH GRANT OPTION;
-              GRANT SYSTEM_USER ON *.* TO '$DB_USER'@'localhost';
-              GRANT SYSTEM_USER ON *.* TO '$DB_USER'@'%';
-              FLUSH PRIVILEGES;
-            " 2>/dev/null && echo "✅ All permissions granted to $DB_USER!" || echo "❌ Failed to grant permissions"
-          '');
-        };
-
         reset = {
           type = "app";
           program = toString (pkgs.writeShellScript "reset-mariadb" ''
             export DB_DATA_DIR="$PWD/.dbdata"
             export DB_SOCKET_DIR="/tmp/mariadb_$(id -u)"
-            export DB_PORT=3306
+            export DB_PORT=${DB_PORT}
 
             echo "🧹 Resetting MariaDB database..."
 
@@ -305,36 +279,6 @@
 
             echo "✅ Database reset complete"
             echo "💡 Run 'nix develop' to reinitialize the database"
-          '');
-        };
-
-        status = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "mariadb-status" ''
-            export DB_PORT=3306
-
-            if nc -z 127.0.0.1 $DB_PORT 2>/dev/null; then
-              echo "✅ MariaDB is running on port $DB_PORT"
-            else
-              echo "❌ MariaDB is not running"
-            fi
-          '');
-        };
-
-        test = {
-          type = "app";
-          program = toString (pkgs.writeShellScript "test-mariadb-connection" ''
-            export DB_PORT=3306
-            export DB_USER="mariadb_user"
-            export DB_PASSWORD="mariadb_pass"
-            export DB_NAME="mariadb_db"
-
-            echo "Testing database connection..."
-            if mysql -h 127.0.0.1 -P $DB_PORT -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SELECT 1;" 2>/dev/null; then
-              echo "✅ Database connection successful!"
-            else
-              echo "❌ Database connection failed!"
-            fi
           '');
         };
       };
