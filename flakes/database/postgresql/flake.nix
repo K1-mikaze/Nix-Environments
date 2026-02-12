@@ -121,7 +121,6 @@
             echo ""
             echo "Connect with: psql -h $PGRUNDIR -U ${DB_USER} -d ${DB_NAME}"
           fi
-          exit
         '';
       };
 
