@@ -17,9 +17,9 @@
       PGRUNDIR = "/tmp/pg_$(id -u)";
       PGDATA = "./.pgdata";
       PGPORT = "5432";
-      DB_USER = "nix_user";
-      DB_PASSWORD = "nix_pass";
-      DB_NAME = "nix_db";
+      DB_USER = "dbUser";
+      DB_PASSWORD = "dbPass";
+      DB_NAME = "dev";
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -130,7 +130,7 @@
           type = "app";
           program = toString (pkgs.writeShellScript "stop-postgres" ''
             export PGDATA=${PGDATA}
-            pg_ctl stop
+            ${pkgs.postgresql}/bin/pg_ctl stop
           '');
         };
 
@@ -140,8 +140,8 @@
           program = toString (pkgs.writeShellScript "reset-postgres" ''
             export PGDATA=${PGDATA}
             export PGRUNDIR=${PGRUNDIR}
-            if pg_ctl status > /dev/null 2>&1; then
-              pg_ctl stop
+            if ${pkgs.postgresql}/bin/pg_ctl status > /dev/null 2>&1; then
+              ${pkgs.postgresql}/bin/pg_ctl stop
             fi
             rm -rf "$PGDATA"
             echo "Database reset complete. Run 'nix develop' to reinitialize."
