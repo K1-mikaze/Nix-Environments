@@ -17,9 +17,9 @@
       PGRUNDIR = "/tmp/pg_$(id -u)";
       PGDATA = "./.pgdata";
       PGPORT = "5432";
-      DB_USER = "dbUser";
-      DB_PASSWORD = "dbPass";
-      DB_NAME = "dev";
+      DB_USER = "dbuser"; # Must be lowercase
+      DB_PASSWORD = "dbpass"; # Must be lowercase
+      DB_NAME = "dev"; # Must be lowercase
     in {
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
@@ -27,100 +27,100 @@
         ];
 
         shellHook = ''
-          export PGDATA="${PGDATA}"
-          export PGPORT="${PGPORT}"
+            export PGDATA="${PGDATA}"
+            export PGPORT="${PGPORT}"
+            export DB_USER="${DB_USER}"
+            export DB_PASSWORD="${DB_PASSWORD}"
+            export DB_NAME="${DB_NAME}"
+            export PGRUNDIR="${PGRUNDIR}"
 
-          # Database credentials
-          export DB_USER="${DB_USER}"
-          export DB_PASSWORD="${DB_PASSWORD}"
-          export DB_NAME="${DB_NAME}"
+            mkdir -p "$PGRUNDIR"
+            chmod 700 "$PGRUNDIR"
 
-          # Create the system directory PostgreSQL expects for locks
-          export PGRUNDIR="${PGRUNDIR}"
-          mkdir -p "$PGRUNDIR"
-          chmod 700 "$PGRUNDIR"
+            # Function to check PostgreSQL readiness
+            wait_for_postgres() {
+              for i in {1..10}; do
+                if pg_ctl status > /dev/null 2>&1; then
+                  return 0
+                fi
+                sleep 1
+              done
+              echo "❌ PostgreSQL did not start within 10 seconds"
+              return 1
+            }
 
-          # Check if database is properly initialized
-          if [ ! -d "$PGDATA" ] || [ ! -f "$PGDATA/PG_VERSION" ]; then
-            echo "Initializing PostgreSQL database..."
-            rm -rf "$PGDATA"
-            initdb --auth=trust --no-locale
+            # Initialize database if needed
+            if [ ! -d "$PGDATA" ] || [ ! -f "$PGDATA/PG_VERSION" ]; then
+              echo "Initializing PostgreSQL database..."
+              rm -rf "$PGDATA"
+              initdb --auth=trust --no-locale || { echo "initdb failed"; exit 1; }
 
-            # Configure to use our custom runtime directory
-            echo "unix_socket_directories = '$PGRUNDIR'" >> "$PGDATA/postgresql.conf"
-            echo "listen_addresses = 'localhost'" >> "$PGDATA/postgresql.conf"
-            echo "port = $PGPORT" >> "$PGDATA/postgresql.conf"
+              # Configure socket directory and port
+              cat >> "$PGDATA/postgresql.conf" <<EOF
+          unix_socket_directories = '${PGRUNDIR}'
+          listen_addresses = 'localhost'
+          port = ${PGPORT}
+          EOF
 
-            # Update authentication to use md5 (password) instead of trust
-            echo "local all all trust" >> "$PGDATA/pg_hba.conf"
-            echo "host all all 127.0.0.1/32 md5" >> "$PGDATA/pg_hba.conf"
-            echo "host all all ::1/128 md5" >> "$PGDATA/pg_hba.conf"
+              # Set authentication: trust for local socket, md5 for TCP
+              cat > "$PGDATA/pg_hba.conf" <<EOF
+          local all all trust
+          host  all all 127.0.0.1/32 md5
+          host  all all ::1/128      md5
+          EOF
 
-            echo "Database initialized successfully!"
+              echo "Starting temporary PostgreSQL instance..."
+              pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k ${PGRUNDIR}" || {
+                echo "❌ Failed to start PostgreSQL. Last 20 lines of log:"
+                tail -20 "$PGDATA/postgres.log"
+                exit 1
+              }
 
-            # Start PostgreSQL temporarily to create user and database
-            echo "Starting PostgreSQL to create user and database..."
-            pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k $PGRUNDIR"
+              # Wait a moment to ensure socket is ready
+              wait_for_postgres || exit 1
 
-            # Create superuser with all privileges
-            echo "Creating superuser '$DB_USER' with all privileges..."
-            psql -h "$PGRUNDIR" postgres -c "CREATE USER $DB_USER WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD '$DB_PASSWORD';"
+              echo "Creating superuser '$DB_USER' and database '$DB_NAME'..."
+              psql -h "$PGRUNDIR" postgres -c "CREATE USER $DB_USER WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD '$DB_PASSWORD';" || {
+                echo "❌ Failed to create user. Check the log above."
+                pg_ctl stop
+                exit 1
+              }
 
-            # Create database owned by the user
-            psql -h "$PGRUNDIR" postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+              psql -h "$PGRUNDIR" postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" || {
+                echo "❌ Failed to create database."
+                pg_ctl stop
+                exit 1
+              }
 
-            # Grant all privileges on the database
-            psql -h "$PGRUNDIR" postgres -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+              # Grant additional privileges
+              psql -h "$PGRUNDIR" -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO $DB_USER;"
+              psql -h "$PGRUNDIR" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;"
+              psql -h "$PGRUNDIR" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;"
+              psql -h "$PGRUNDIR" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO $DB_USER;"
+              psql -h "$PGRUNDIR" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TYPES TO $DB_USER;"
 
-            # Grant permissions to create schemas and other objects
-            psql -h "$PGRUNDIR" $DB_NAME -c "GRANT ALL ON SCHEMA public TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO $DB_USER;"
-            psql -h "$PGRUNDIR" $DB_NAME -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TYPES TO $DB_USER;"
-
-            echo "Superuser created with all permissions!"
-
-            # Stop PostgreSQL after setup
-            pg_ctl stop
-            echo "Database setup complete!"
-          fi
-
-          # Start PostgreSQL with explicit socket directory
-          if ! pg_ctl status > /dev/null 2>&1; then
-            echo "Starting PostgreSQL..."
-            echo "Using runtime directory: $PGRUNDIR"
-
-            if pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k $PGRUNDIR"; then
-              echo "===> PostgreSQL started successfully!"
-              echo "Database: $DB_NAME"
-              echo "Username: $DB_USER (SUPERUSER)"
-              echo "Password: $DB_PASSWORD"
-              echo "Port: $PGPORT"
-              echo ""
-              echo "Connection strings:"
-              echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
-
-              echo ""
-              echo "Connect with: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
-            else
-              echo "Failed to start PostgreSQL. Check the log:"
-              cat "$PGDATA/postgres.log"
+              echo "Stopping temporary instance..."
+              pg_ctl stop || echo "Warning: stop failed, but continuing."
+              echo "✅ Database initialized successfully!"
             fi
-          else
-            echo " ==> PostgreSQL is already running"
 
-            echo "Database: ${DB_NAME}"
-            echo "Username: ${DB_USER} (SUPERUSER)"
-            echo "Password: ${DB_PASSWORD}"
-            echo "Port: ${PGPORT}"
-            echo ""
-            echo "Connection strings:"
-            echo "  URL: postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${PGPORT}/${DB_NAME}"
-
-            echo ""
-            echo "Connect with: psql -h $PGRUNDIR -U ${DB_USER} -d ${DB_NAME}"
-          fi
+            # Start the main instance if not already running
+            if ! pg_ctl status > /dev/null 2>&1; then
+              echo "Starting PostgreSQL..."
+              if pg_ctl start -l "$PGDATA/postgres.log" -w -o "-k $PGRUNDIR"; then
+                echo "✅ PostgreSQL started. Connection details:"
+                echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
+                echo "  Local socket: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
+              else
+                echo "❌ Failed to start PostgreSQL. Check the log:"
+                tail -20 "$PGDATA/postgres.log"
+                exit 1
+              fi
+            else
+              echo "✅ PostgreSQL is already running."
+              echo "  URL: postgresql://$DB_USER:$DB_PASSWORD@localhost:$PGPORT/$DB_NAME"
+              echo "  Local socket: psql -h $PGRUNDIR -U $DB_USER -d $DB_NAME"
+            fi
         '';
       };
 
