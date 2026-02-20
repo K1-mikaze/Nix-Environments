@@ -202,6 +202,90 @@
 
       exec emulator -avd android_emulator -gpu host -no-snapshot -no-snapshot-load -no-snapshot-save -port 5554 -grpc 8554 -qemu -enable-kvm
     '';
+
+    flutterAppx86 = let
+      patchedFlutterx86 = pkgsx86.flutter.overrideAttrs (oldAttrs: {
+        patchPhase = ''
+          runHook prePatch
+          substituteInPlace $FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/kotlin/FlutterTask.kt \
+            --replace 'val cmakeExecutable = project.file(cmakePath).absolutePath' 'val cmakeExecutable = "cmake"' \
+            --replace 'val ninjaExecutable = project.file(ninjaPath).absolutePath' 'val ninjaExecutable = "ninja"'
+          find $FLUTTER_ROOT -name "*.gradle" -o -name "*.gradle.kts" | xargs -I {} \
+            sed -i 's|cmake/[^/]*/bin/cmake|cmake|g' {} 2>/dev/null || true
+          find $FLUTTER_ROOT/packages/flutter_tools -name "*.dart" | xargs -I {} \
+            sed -i 's|/cmake/[^/]*/bin/cmake|cmake|g' {} 2>/dev/null || true
+          runHook postPatch
+        '';
+      });
+      flutterLibPath = pkgsx86.lib.makeLibraryPath (
+        with pkgsx86; [
+          glibc
+          zlib
+          ncurses5
+          stdenv.cc.cc.lib
+          libsForQt5.qt5.qtbase
+          libsForQt5.qt5.qtsvg
+          libsForQt5.qt5.qtwayland
+          qt6.qtbase
+          qt6.qtsvg
+          xorg.libX11
+          xorg.libXext
+          xorg.libXfixes
+          xorg.libXi
+          xorg.libXrandr
+          xorg.libXrender
+          xorg.libxcb
+          xorg.xcbutil
+          xorg.xcbutilwm
+          xorg.xcbutilimage
+          xorg.xcbutilkeysyms
+          xorg.xcbutilrenderutil
+          libxkbcommon
+          mesa
+          libdrm
+          vulkan-loader
+          libglvnd
+          linuxPackages.nvidia_x11
+          fontconfig
+          freetype
+          dbus
+          libpulseaudio
+          pipewire
+          udev
+          libinput
+          libevdev
+          gtk3
+          gdk-pixbuf
+          cairo
+          pango
+          harfbuzz
+          glib
+          gsettings-desktop-schemas
+          xcb-util-cursor
+          xorg.libXcursor
+        ]
+      );
+    in
+      pkgsx86.writeShellScriptBin "flutter" ''
+        #!/usr/bin/env bash
+        set -e
+
+        export LD_LIBRARY_PATH="${flutterLibPath}:$LD_LIBRARY_PATH"
+
+        export ANDROID_SDK_ROOT="${androidEnvx86}/share/android-sdk"
+        export ANDROID_HOME="$ANDROID_SDK_ROOT"
+        export PATH="$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+
+        export JAVA_HOME="${pkgsx86.jdk17}"
+        export PATH="${pkgsx86.cmake}/bin:${pkgsx86.ninja}/bin:${patchedFlutterx86}/bin:$PATH"
+
+        if [ -d "$PWD/.android/sdk" ]; then
+          export ANDROID_HOME="$PWD/.android/sdk"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+        fi
+
+        exec "${patchedFlutterx86}/bin/flutter" "$@"
+      '';
   in
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
@@ -653,6 +737,10 @@
       apps.x86_64-linux.emulator = {
         type = "app";
         program = "${emulatorAppx86}/bin/run-emulator";
+      };
+      apps.x86_64-linux.flutter = {
+        type = "app";
+        program = "${flutterAppx86}/bin/flutter";
       };
     };
 }
