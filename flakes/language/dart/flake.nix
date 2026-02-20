@@ -15,7 +15,194 @@
     nixpkgs,
     flake-utils,
     android-nixpkgs,
-  }:
+  }: let
+    pkgsx86 = import nixpkgs {
+      system = "x86_64-linux";
+      config = {
+        allowUnfree = true;
+        android_sdk.accept_license = true;
+      };
+    };
+    androidEnvx86 =
+      android-nixpkgs.sdk.x86_64-linux (sdkPkgs:
+        with sdkPkgs; [
+          cmdline-tools-latest
+          build-tools-36-0-0
+          platform-tools
+          platforms-android-36
+          emulator
+          ndk-27-0-12077973
+          system-images-android-36-google-apis-playstore-x86-64
+        ])
+      // {
+        buildInputs =
+          (androidEnvx86.buildInputs or [])
+          ++ (with pkgsx86; [
+            xcb-util-cursor
+            xorg.libXcursor
+            xorg.libX11
+            xorg.libxcb
+            qt6.qtbase
+            qt6.qtsvg
+          ]);
+      };
+    libPathx86 = pkgsx86.lib.makeLibraryPath (
+      with pkgsx86; [
+        glibc
+        zlib
+        ncurses5
+        pkgsx86.stdenv.cc.cc.lib
+        libsForQt5.qt5.qtbase
+        libsForQt5.qt5.qtsvg
+        libsForQt5.qt5.qtwayland
+        qt6.qtbase
+        qt6.qtsvg
+        xorg.libX11
+        xorg.libXext
+        xorg.libXfixes
+        xorg.libXi
+        xorg.libXrandr
+        xorg.libXrender
+        xorg.libxcb
+        xorg.xcbutil
+        xorg.xcbutilwm
+        xorg.xcbutilimage
+        xorg.xcbutilkeysyms
+        xorg.xcbutilrenderutil
+        libxkbcommon
+        mesa
+        libdrm
+        vulkan-loader
+        libglvnd
+        linuxPackages.nvidia_x11
+        fontconfig
+        freetype
+        dbus
+        libpulseaudio
+        pipewire
+        udev
+        libinput
+        libevdev
+        gtk3
+        gdk-pixbuf
+        cairo
+        pango
+        harfbuzz
+        glib
+        gsettings-desktop-schemas
+        xcb-util-cursor
+        xorg.libXcursor
+      ]
+    );
+    emulatorAppx86 = pkgsx86.writeShellScriptBin "run-emulator" ''
+      #!/usr/bin/env bash
+      echo "Launching emulator ..."
+      echo "🔐 Granting local X access with xhost for DISPLAY=$DISPLAY..."
+      NIX_XHOST="${pkgsx86.xorg.xhost}/bin/xhost"
+
+      if [ -x "$NIX_XHOST" ] && [ -n "$DISPLAY" ]; then
+        "$NIX_XHOST" +local: > /dev/null
+        if [ $? -eq 0 ]; then
+          XHOST_CLEANUP=true
+          echo "✅ X access granted successfully via Nix-xhost."
+        else
+          echo "❌ Nix-xhost command failed. Authorization may still be blocked."
+          XHOST_CLEANUP=false
+        fi
+      else
+        echo "⚠️ Warning: Nix-xhost binary not found at $NIX_XHOST or DISPLAY not set. Fix skipped."
+        XHOST_CLEANUP=false
+      fi
+
+      export LD_LIBRARY_PATH="${libPathx86}:$LD_LIBRARY_PATH"
+
+      if [ -n "$WAYLAND_DISPLAY" ]; then
+        echo "🌿 Wayland detected: $WAYLAND_DISPLAY"
+        USE_WAYLAND=true
+        if [ -z "$DISPLAY" ]; then
+          export DISPLAY=:0
+        fi
+        export QT_QPA_PLATFORM=xcb
+      else
+        echo "🖥️  X11 detected: ${DISPLAY:-:0}"
+        USE_WAYLAND=false
+        export QT_QPA_PLATFORM=xcb
+      fi
+
+      export QT_QPA_PLATFORM=xcb
+      export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgsx86.qt6.qtbase}/lib/qt-6/plugins"
+      export QT_PLUGIN_PATH="${pkgsx86.qt6.qtbase}/lib/qt-6/plugins"
+      export QML2_IMPORT_PATH="${pkgsx86.qt6.qtbase}/lib/qt-6/qml"
+      export QTWEBENGINE_DISABLE_SANDBOX=1
+      export QT_OPENGL=desktop
+      export QT_QPA_PLATFORMTHEME=gtk3
+      export QT_ACCESSIBILITY=1
+      export QT_IM_MODULE=compose
+      export XMODIFIERS=@im=none
+      export GTK_IM_MODULE=gtk-im-context-simple
+      export QT_LOGGING_RULES="qt.qpa.input=true;qt.qpa.input.events=true"
+      export QT_QPA_GENERIC_PLUGINS=""
+      export QT_QPA_ENABLE_TERMINAL_KEYBOARD=1
+      export SDL_VIDEODRIVER=x11
+      export XKB_DEFAULT_LAYOUT=us
+
+      LD_PATH_BASE="${libPathx86}"
+
+      if [ -d "/run/opengl-driver" ]; then
+          echo "✅ NVIDIA/OpenGL driver detected"
+          export LD_LIBRARY_PATH="/run/opengl-driver/lib:${libPathx86}:$LD_LIBRARY_PATH"
+          export LIBGL_DRIVERS_PATH="/run/opengl-driver/lib/dri"
+          export MESA_LOADER_DRIVER_OVERRIDE=""
+      else
+          echo "⚠️ NVIDIA driver not found, using Mesa fallback"
+          export LD_LIBRARY_PATH="${pkgsx86.mesa}/lib:${pkgsx86.libdrm}/lib:${pkgsx86.vulkan-loader}/lib:${libPathx86}:$LD_LIBRARY_PATH"
+          export LIBGL_DRIVERS_PATH="${pkgsx86.mesa}/lib/dri"
+          export MESA_LOADER_DRIVER_OVERRIDE=i965
+      fi
+
+      if [ -d "/run/opengl-driver" ]; then
+          echo "⚠️ Forcing Vulkan/Mesa device selection for NVIDIA"
+          export MESA_VULKAN_DEVICE_SELECT="${pkgsx86.vulkan-loader}/etc/vulkan/icd.d/nvidia_icd.json"
+      fi
+
+      export QEMU_GL_ENABLE=1
+      export QEMU_VULKAN_ENABLE=1
+      export LD_PRELOAD="${pkgsx86.libglvnd}/lib/libGL.so.1"
+
+      HOME_EMULATOR_CONFIG_DIR="$HOME/.android/avd/android_emulator.avd"
+      if [ -d "$HOME_EMULATOR_CONFIG_DIR" ]; then
+        echo "📝 Found AVD in home directory: $HOME_EMULATOR_CONFIG_DIR"
+        if [ -f "$HOME_EMULATOR_CONFIG_DIR/config.ini" ]; then
+          if grep -q "^hw\.keyboard\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
+            sed -i 's/^hw\.keyboard\s*=.*/hw.keyboard=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          else
+            echo "hw.keyboard=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          fi
+          if grep -q "^hw\.mainKeys\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
+            sed -i 's/^hw\.mainKeys\s*=.*/hw.mainKeys=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          else
+            echo "hw.mainKeys=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          fi
+          if grep -q "^hw\.dPad\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
+            sed -i 's/^hw\.dPad\s*=.*/hw.dPad=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          else
+            echo "hw.dPad=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
+          fi
+          echo "✅ Updated home directory emulator configuration"
+        fi
+      fi
+
+      if $XHOST_CLEANUP; then
+        trap "xhost -local: > /dev/null; echo '✅ X access revoked.'" EXIT
+      fi
+
+      export ANDROID_SDK_ROOT="${androidEnvx86}/share/android-sdk"
+      export ANDROID_HOME="$ANDROID_SDK_ROOT"
+      export PATH="$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+
+      exec emulator -avd android_emulator -gpu host -no-snapshot -no-snapshot-load -no-snapshot-save -port 5554 -grpc 8554 -qemu -enable-kvm
+    '';
+  in
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {
         inherit system;
@@ -50,162 +237,6 @@
               qt6.qtsvg
             ]);
         };
-
-      wrappedEmulator = pkgs.writeShellScriptBin "run-emulator" ''
-        #!/usr/bin/env bash
-        echo "Launching emulator ..."
-
-        echo "🔐 Granting local X access with xhost for DISPLAY=$DISPLAY..."
-
-        # CRITICAL: Define the explicit path to the Nix-built xhost
-        NIX_XHOST="${pkgs.xorg.xhost}/bin/xhost"
-
-        if [ -x "$NIX_XHOST" ] && [ -n "$DISPLAY" ]; then
-          # *** USE NIX-PROVIDED XHOST DIRECTLY ***
-          "$NIX_XHOST" +local: > /dev/null
-          if [ $? -eq 0 ]; then
-            XHOST_CLEANUP=true
-            echo "✅ X access granted successfully via Nix-xhost."
-          else
-            echo "❌ Nix-xhost command failed. Authorization may still be blocked."
-            XHOST_CLEANUP=false
-          fi
-        else
-          echo "⚠️ Warning: Nix-xhost binary not found at $NIX_XHOST or DISPLAY not set. Fix skipped."
-          XHOST_CLEANUP=false
-        fi
-
-        # ---------------------------------------------
-        # FHS LIBRARY PREPENDING
-        # Solves: Qt XCB plugin crash during -gpu host initialization.
-        # Ensures core libraries are found via FHS symlinks.
-        # ---------------------------------------------
-        # Use the FHS_LIB path provided by your shell's environment
-        if [ -n "$FHS_LIB" ]; then
-          export LD_LIBRARY_PATH="$FHS_LIB/usr/lib:$LD_LIBRARY_PATH"
-        else
-          echo "❌ Error: FHS_LIB is not set. Library path fix will not work correctly."
-        fi
-
-        # ----------------------------
-        # Detect display server
-        # ----------------------------
-        if [ -n "$WAYLAND_DISPLAY" ]; then
-          echo "🌿 Wayland detected: $WAYLAND_DISPLAY"
-          USE_WAYLAND=true
-          if [ -z "$DISPLAY" ]; then
-            export DISPLAY=:0
-          fi
-          export QT_QPA_PLATFORM=xcb #Force XWayland
-        else
-          echo "🖥️  X11 detected: ${DISPLAY:-:0}"
-          USE_WAYLAND=false
-          export QT_QPA_PLATFORM=xcb
-        fi
-
-        # ----------------------------
-        # Qt environment
-        # ----------------------------
-        export QT_QPA_PLATFORM=xcb
-        export QT_QPA_PLATFORM_PLUGIN_PATH="${pkgs.qt6.qtbase}/lib/qt-6/plugins"
-        export QT_PLUGIN_PATH="${pkgs.qt6.qtbase}/lib/qt-6/plugins"
-        export QML2_IMPORT_PATH="${pkgs.qt6.qtbase}/lib/qt-6/qml"
-        export QTWEBENGINE_DISABLE_SANDBOX=1
-        export QT_OPENGL=desktop
-        export QT_QPA_PLATFORMTHEME=gtk3
-
-        # Input/accessibility fixes - CRITICAL FOR KEYBOARD INPUT
-        export QT_ACCESSIBILITY=1
-        export QT_IM_MODULE=compose
-        export XMODIFIERS=@im=none
-        export GTK_IM_MODULE=gtk-im-context-simple
-
-        # Enhanced input device configuration
-        export QT_LOGGING_RULES="qt.qpa.input=true;qt.qpa.input.events=true"
-        export QT_QPA_GENERIC_PLUGINS=""
-        # Allow Qt to use system input instead of forcing evdev
-        export QT_QPA_ENABLE_TERMINAL_KEYBOARD=1
-
-        # X11 input settings
-        export SDL_VIDEODRIVER=x11
-        export XKB_DEFAULT_LAYOUT=us
-
-        # ----------------------------
-        # Graphics / OpenGL driver
-        # ----------------------------
-        LD_PATH_BASE="$FHS_LIB/usr/lib"
-
-        if [ -d "/run/opengl-driver" ]; then
-            echo "✅ NVIDIA/OpenGL driver detected"
-            LD_PATH_BASE="$FHS_LIB/usr/lib"
-            export LD_LIBRARY_PATH="/run/opengl-driver/lib:$FHS_LIB/usr/lib:$LD_LIBRARY_PATH"
-            export LIBGL_DRIVERS_PATH="/run/opengl-driver/lib/dri"
-            export MESA_LOADER_DRIVER_OVERRIDE=""
-        else
-            echo "⚠️ NVIDIA driver not found, using Mesa fallback"
-            LD_PATH_BASE="$FHS_LIB/usr/lib"
-            export LD_LIBRARY_PATH="${pkgs.mesa}/lib:${pkgs.libdrm}/lib:${pkgs.vulkan-loader}/lib:$LD_LIBRARY_PATH"
-            export LIBGL_DRIVERS_PATH="${pkgs.mesa}/lib/dri"
-            export MESA_LOADER_DRIVER_OVERRIDE=i965
-        fi
-
-        if [ -d "/run/opengl-driver" ]; then
-            echo "⚠️ Forcing Vulkan/Mesa device selection for NVIDIA"
-            # This environment variable helps the Vulkan loader find the correct driver JSON file.
-            export MESA_VULKAN_DEVICE_SELECT="${pkgs.vulkan-loader}/etc/vulkan/icd.d/nvidia_icd.json"
-        fi
-
-        # This is a fix to force the emulator to use the host's GL/Vulkan stack
-        export QEMU_GL_ENABLE=1
-        export QEMU_VULKAN_ENABLE=1
-        export LD_PRELOAD="${pkgs.libglvnd}/lib/libGL.so.1" # Only preload libGL.so.1          # ---------------------------------------------
-        # Physical Keyboard & side panel Functionality
-        # ---------------------------------------------
-        # Check home directory AVD
-        HOME_EMULATOR_CONFIG_DIR="$HOME/.android/avd/android_emulator.avd"
-        if [ -d "$HOME_EMULATOR_CONFIG_DIR" ]; then
-          echo "📝 Found AVD in home directory: $HOME_EMULATOR_CONFIG_DIR"
-
-          # Update home directory config.ini
-          if [ -f "$HOME_EMULATOR_CONFIG_DIR/config.ini" ]; then
-            if grep -q "^hw\.keyboard\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
-              sed -i 's/^hw\.keyboard\s*=.*/hw.keyboard=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            else
-              echo "hw.keyboard=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            fi
-
-            if grep -q "^hw\.mainKeys\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
-              sed -i 's/^hw\.mainKeys\s*=.*/hw.mainKeys=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            else
-              echo "hw.mainKeys=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            fi
-
-            if grep -q "^hw\.dPad\s*=" "$HOME_EMULATOR_CONFIG_DIR/config.ini"; then
-              sed -i 's/^hw\.dPad\s*=.*/hw.dPad=yes/' "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            else
-              echo "hw.dPad=yes" >> "$HOME_EMULATOR_CONFIG_DIR/config.ini"
-            fi
-            echo "✅ Updated home directory emulator configuration"
-          fi
-        fi
-
-        # ---------------------------------------------
-        # Run the emulator with Cleanup Trap
-        # ---------------------------------------------
-        # Set a trap to ensure xhost is cleaned up even if the script is aborted
-        if $XHOST_CLEANUP; then
-          trap "xhost -local: > /dev/null; echo '✅ X access revoked.'" EXIT
-        fi
-
-        exec emulator -avd android_emulator \
-          -gpu host \
-          -no-snapshot \
-          -no-snapshot-load \
-          -no-snapshot-save \
-          -port 5554 \
-          -grpc 8554 \
-          -qemu -enable-kvm \
-      '';
 
       # Patched Flutter derivation.
       patchedFlutter = pkgs.flutter.overrideAttrs (oldAttrs: {
@@ -252,7 +283,6 @@
               nix-ld
               gradle
               patchedFlutter
-              wrappedEmulator
 
               # Android SDK components and environment
               androidEnv
@@ -427,11 +457,7 @@
               echo "✅ FHS graphics symlinks initialized at $FHS_LIB"
               echo "⚡ Fast shell entry - Flutter environment ready!"
               echo "👉 To launch the emulator, run:"
-              echo "    run-emulator"
-              echo "👉 To launch emulator with debug output:"
-              echo "    run-emulator -log-detailed"
-              echo "👉 To launch emulator headless (no GUI):"
-              echo "    run-emulator -no-window"
+              echo "    nix run .#emulator"
               echo ""
               echo "👉 To build your app, run:"
               echo "   flutter build apk --release"
@@ -614,11 +640,7 @@
               fi
 
               echo "👉 To launch the emulator, run:"
-              echo "    run-emulator"
-              echo "👉 To launch emulator with debug output:"
-              echo "    run-emulator -log-detailed"
-              echo "👉 To launch emulator headless (no GUI):"
-              echo "    run-emulator -no-window"
+              echo "    nix run .#emulator"
               echo ""
               echo "👉 To build your app, run:"
               echo "   flutter build apk --release"
@@ -626,5 +648,11 @@
           '';
           runScript = "bash";
         }).env;
-    });
+    })
+    // {
+      apps.x86_64-linux.emulator = {
+        type = "app";
+        program = "${emulatorAppx86}/bin/run-emulator";
+      };
+    };
 }
