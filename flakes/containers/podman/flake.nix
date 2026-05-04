@@ -60,6 +60,29 @@
             shellHook = ''
               # Install required configuration
               ${podmanSetupScript}
+
+              # Setup Podman Docker-compatible API socket for tools like LazyDocker
+              SOCKET="$XDG_RUNTIME_DIR/podman/podman.sock"
+              mkdir -p "$(dirname "$SOCKET")"
+
+              # Start Podman API service if socket is not already available
+              if [ ! -S "$SOCKET" ]; then
+                podman system service --time=0 "unix://$SOCKET" &
+                PODMAN_SERVICE_PID=$!
+                # Wait briefly for socket to initialize
+                for i in $(seq 1 10); do
+                  if [ -S "$SOCKET" ]; then break; fi
+                  sleep 0.5
+                done
+              fi
+
+              # Export DOCKER_HOST so tools find the socket
+              export DOCKER_HOST="unix://$SOCKET"
+
+              # Cleanup: Stop Podman service when shell exits
+              if [ -n "$PODMAN_SERVICE_PID" ]; then
+                trap "kill $PODMAN_SERVICE_PID 2>/dev/null" EXIT
+              fi
             '';
           };
         }
