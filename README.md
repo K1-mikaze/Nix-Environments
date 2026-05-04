@@ -138,23 +138,23 @@ nix develop
 
 ### Containerization
 
-| Name   | Path                                           | Command                                                                    |
-| ------ | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| Podman | [Podman](./flakes/containers/podman/flake.nix) | nix develop github:k1-mikaze/nix-environments?dir=flakes/containers/podman |
+| Name   | Path                                           | Command                                                                       | Description                                                 |
+| ------ | ---------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Podman | [Podman](./flakes/containers/podman/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/containers/podman | A shell able to run docker/podman and docker/podman compose |
 
 ### Databases
 
-| name       | path                                                 | command                                                                      |
-| ---------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Postgresql | [postgresql](./flakes/database/postgresql/flake.nix) | nix develop github:k1-mikaze/nix-environments?dir=flakes/database/postgresql |
-| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         | nix develop github:K1-mikaze/Nix-Environments?dir=flakes/database/mysql      |
+| name       | path                                                 | command                                                                         | Description                                              |
+| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Postgresql | [postgresql](./flakes/database/postgresql/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/database/postgresql | a shell that run an instance of a postgresql database    |
+| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         | nix develop github:sergioia-dev/nix-environments?dir=flakes/database/mysql      | a shell that run an instance of a mysql/mariadb database |
 
 ### Programming Languages
 
-| Name | Path                                     | Description                                 |
-| ---- | ---------------------------------------- | ------------------------------------------- |
-| Rust | [rust](./flakes/language/rust/flake.nix) | Environment for Rust Development            |
-| Dart | [dart](./flakes/language/dart/flake.nix) | Environment for Flutter Android Development |
+| Name | Path                                     | Command                                                                   | Description                                 |
+| ---- | ---------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------- |
+| Rust | [rust](./flakes/language/rust/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/language/rust | Environment for Rust Development            |
+| Dart | [dart](./flakes/language/dart/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/language/dart | Environment for Flutter Android Development |
 
 ## Nix Shell
 
