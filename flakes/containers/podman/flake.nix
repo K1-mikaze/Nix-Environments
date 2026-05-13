@@ -37,6 +37,11 @@
               if ! test -f ~/.config/containers/registries.conf; then
                 install -Dm555 ${registriesConf} ~/.config/containers/registries.conf
               fi
+              # Configure Podman to disable container logging, this avoid Errors in LazyDocker like tools
+              cat > ~/.config/containers/containers.conf << 'EOF'
+              [containers]
+              log_driver = "none"
+              EOF
             '';
 
           dockerCompat = pkgs.runCommand "docker-podman-compat" { } ''
