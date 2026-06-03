@@ -12,8 +12,8 @@
     android-emulator = { url = "./shells/android-emulator"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
     flutter-android = { url = "./shells/flutter-android"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
     rust-minimal = { url = "./shells/rust-minimal"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
-    java25-maven = { url = "./shells/java25-maven"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
     java25-gradle = { url = "./shells/java25-gradle"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
+    java25-maven = { url = "./shells/java25-maven"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; }; };
   };
   outputs = { self, flake-utils, ... }@inputs:
     let

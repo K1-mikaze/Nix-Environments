@@ -51,11 +51,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1764707061,
-        "narHash": "sha256-vEQ7RjOzwirVBy88g91bwXUc5QmDurBg3Ex8fs2E7ns=",
+        "lastModified": 1780174551,
+        "narHash": "sha256-vU5hMdfo1elVG/exFZCkTAQnQs5Ur403eaYDMuBVTlA=",
         "owner": "tadfisher",
         "repo": "android-nixpkgs",
-        "rev": "111c7a7023396153a4010fd124f6a9fee9c13be9",
+        "rev": "9d0b5742899b991550d5e2d177a7d8a6b732363d",
         "type": "github"
       },
       "original": {
@@ -75,11 +75,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1764707061,
-        "narHash": "sha256-vEQ7RjOzwirVBy88g91bwXUc5QmDurBg3Ex8fs2E7ns=",
+        "lastModified": 1780174551,
+        "narHash": "sha256-vU5hMdfo1elVG/exFZCkTAQnQs5Ur403eaYDMuBVTlA=",
         "owner": "tadfisher",
         "repo": "android-nixpkgs",
-        "rev": "111c7a7023396153a4010fd124f6a9fee9c13be9",
+        "rev": "9d0b5742899b991550d5e2d177a7d8a6b732363d",
         "type": "github"
       },
       "original": {
@@ -120,11 +120,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1764011051,
-        "narHash": "sha256-M7SZyPZiqZUR/EiiBJnmyUbOi5oE/03tCeFrTiUZchI=",
+        "lastModified": 1768818222,
+        "narHash": "sha256-460jc0+CZfyaO8+w8JNtlClB2n4ui1RbHfPTLkpwhU8=",
         "owner": "numtide",
         "repo": "devshell",
-        "rev": "17ed8d9744ebe70424659b0ef74ad6d41fc87071",
+        "rev": "255a2b1725a20d060f566e4755dbf571bbbb5f76",
         "type": "github"
       },
       "original": {
@@ -143,11 +143,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1764011051,
-        "narHash": "sha256-M7SZyPZiqZUR/EiiBJnmyUbOi5oE/03tCeFrTiUZchI=",
+        "lastModified": 1768818222,
+        "narHash": "sha256-460jc0+CZfyaO8+w8JNtlClB2n4ui1RbHfPTLkpwhU8=",
         "owner": "numtide",
         "repo": "devshell",
-        "rev": "17ed8d9744ebe70424659b0ef74ad6d41fc87071",
+        "rev": "255a2b1725a20d060f566e4755dbf571bbbb5f76",
         "type": "github"
       },
       "original": {
@@ -289,7 +289,7 @@
       },
       "parent": []
     },
-    "java25-grawdle": {
+    "java25-gradle": {
       "inputs": {
         "flake-utils": [
           "flake-utils"
@@ -299,11 +299,11 @@
         ]
       },
       "locked": {
-        "path": "./shells/java25-grawdle",
+        "path": "./shells/java25-gradle",
         "type": "path"
       },
       "original": {
-        "path": "./shells/java25-grawdle",
+        "path": "./shells/java25-gradle",
         "type": "path"
       },
       "parent": []
@@ -405,7 +405,7 @@
         "android-emulator": "android-emulator",
         "flake-utils": "flake-utils_2",
         "flutter-android": "flutter-android",
-        "java25-grawdle": "java25-grawdle",
+        "java25-gradle": "java25-gradle",
         "java25-maven": "java25-maven",
         "mariadb": "mariadb",
         "nixpkgs": "nixpkgs",

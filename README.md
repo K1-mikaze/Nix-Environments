@@ -2,160 +2,93 @@
 
 This repository focuses on making developer environment setup with Nix easier and more accessible.
 
-## Nix Shells
+## Requirements
 
-### Requirements
+- The Nix package manager with the experimental features `flakes` and `nix-command` enabled.
 
-- The Nix package manager.
-
-How to install it in any Unix system in <https://nixos.org/download/>
-
-### What are Nix Shells?
-
-A nix-shell is a temporary, isolated development environment created by the Nix package manager. It provides access to specific tools, libraries, and dependencies without installing them permanently on your system.
-
-Think of it like a "project-specific toolbox" that you can open when working on a project and close when you're done, leaving your main system clean and unchanged.
-
-### How Nix Shells Work
-
-Nix Shells use a shell.nix file that defines the environment:
+Install Nix at <https://nixos.org/download/>, then enable flakes:
 
 ```nix
-# shell.nix
-{ pkgs ? import <nixpkgs> {} }:
-
-pkgs.mkShell {
-  buildInputs = with pkgs; [
-    python3
-    nodejs
-    git
-  ];
-
-  shellHook = ''
-    echo "Environment ready!"
-  '';
-}
-```
-
-Usage:
-
-```bash
-nix-shell
-```
-
-#### Problems Nix Shells Solve
-
-- "It works on my machine!": You might have Node.js 18 globally, but your project needs Node.js 16
-
-- Complex Dependencies: Projects needing specific, conflicting libraries or packages
-
-- Onboarding New Developers: Eliminates long, error-prone setup instructions
-
-- Clean System: No global package pollution
-
-**Limitation:** Uses whatever nixpkgs channel is currently active on your system.
-
-## Nix Develop (Flakes)
-
-### Requirements
-
-- The Nix package manager with the experimental feature `flakes` and `nix-command` enable .
-
-How to install it in any Unix system in <https://nixos.org/download/> and to enable flakes:
-
-```nix
-Add the following to ~/.config/nix/nix.conf or /etc/nix/nix.conf:
-
 experimental-features = nix-command flakes
 ```
 
-### What is Nix Develop?
+Add the line above to `~/.config/nix/nix.conf` or `/etc/nix/nix.conf`.
 
-nix develop is the modern, reproducible approach to development environments using Nix Flakes. It creates isolated environments with pinned, exact versions of all dependencies.
+## What is `nix develop`?
 
-Think of it as a "version-controlled, reproducible toolbox" that guarantees everyone gets the exact same environment.
+`nix develop` creates isolated, reproducible development environments with pinned dependency versions. Every shell in this repo uses Nix Flakes — locked in `flake.lock` — so everyone gets the exact same environment, every time.
 
-### How Nix Develop Works
+Think of it as a "version-controlled, reproducible toolbox" that you open when working on a project and close when you're done, leaving your system clean.
 
-Nix Develop uses a flake.nix file with locked versions:
+Key advantages over traditional `nix-shell`:
 
-```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11"; # Pinned version!
-    flake-utils.url = "github:numtide/flake-utils";
-  };
+- **Reproducible** — `flake.lock` pins exact versions for every dependency
+- **Discoverable** — `nix flake show` lists all available shells
+- **Composable** — environments can reference and depend on each other
+- **CI/CD parity** — same environment in development and builds
+- **Clean** — no global package pollution
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system: {
-      devShells.default = let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in pkgs.mkShell {
-        packages = with pkgs; [
-          python3
-          nodejs_18  # Exact version
-          postgresql_15
-        ];
+# Available Shells
 
-        shellHook = ''
-          echo "🐚 Reproducible environment ready!"
-        '';
-      };
-    });
-}
-```
-
-Usage:
+## Usage
 
 ```bash
-nix develop
+nix develop .#<name>     # enter a dev shell
+nix run .#emulator        # launch Android emulator
+nix flake show            # list all available shells
+nix develop github:sergioia-dev/nix-environments?dir=shells/<name>   # remote access
 ```
 
-### Key Advantages Over Nix Shells
+## Containerization
 
-- Reproducible: Locked dependencies in flake.lock ensure identical environments everywhere
+### Podman — `nix develop .#podman`
+**Path:** `shells/podman`
 
-- Discoverable: nix flake show reveals all available environments
+A shell with Docker/Podman and Docker Compose available. Use it to run containers without installing Docker globally. All standard `docker` and `podman` commands work inside.
 
-- Composable: Easy to mix packages from different sources
+## Databases
 
-- Modern: Part of the Nix Flakes ecosystem
+### PostgreSQL — `nix develop .#postgredb`
+**Path:** `shells/postgredb`
 
-### Problems Nix Develop Solves
+Automatically starts a PostgreSQL instance on the first available port (5432–5442). Creates a `.pgdata` directory for the database files. Auto-shuts down when you exit the shell. Connect with:
+```bash
+psql -p $(cat .pgdata/.pgport)
+```
 
-- Version Drift: Everyone gets identical tool versions
+### MariaDB — `nix develop .#mariadb`
+**Path:** `shells/mariadb`
 
-- Broken Updates: Pinned dependencies prevent unexpected breakages
+Starts a MariaDB/MySQL instance. Creates a data directory and auto-shuts down on exit. Run `mysql -u root` to connect.
 
-- Team Consistency: All developers use the same environment
+## Programming Languages
 
-- CI/CD Parity: Development environment matches production builds
+### Rust — `nix develop .#rust-minimal`
+**Path:** `shells/rust-minimal`
 
-# Current Available
+Minimal Rust toolchain: `cargo`, `rustc`, `rustfmt`, `clippy`, `rust-analyzer`, plus `openssl`, `zlib`, and `pkg-config` for common crate builds. No extra tooling — start with `cargo init`.
 
-## Flakes
+### Flutter Android — `nix develop .#flutter-android`
+**Path:** `shells/flutter-android`
 
-### Containerization
+Full Flutter + Android SDK environment. On first run, copies the SDK to `.android/sdk`, accepts licenses, and configures Flutter. Does not create or modify project files — run `flutter create my_app` yourself. Launch the emulator with `nix run .#emulator`.
 
-| Name   | Path                                           | Command                                                                       | Description                                                 |
-| ------ | ---------------------------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Podman | [Podman](./flakes/containers/podman/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/containers/podman | A shell able to run docker/podman and docker/podman compose |
+### Java 25 + Maven — `nix develop .#java25-maven`
+**Path:** `shells/java25-maven`
 
-### Databases
+JDK 25 with Maven. `JAVA_HOME` is set automatically. Build with `mvn clean install`.
 
-| name       | path                                                 | command                                                                         | Description                                              |
-| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Postgresql | [postgresql](./flakes/database/postgresql/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/database/postgresql | a shell that run an instance of a postgresql database    |
-| MySQL      | [mariadb](./flakes/database/mysql/flake.nix)         | nix develop github:sergioia-dev/nix-environments?dir=flakes/database/mysql      | a shell that run an instance of a mysql/mariadb database |
+### Java 25 + Gradle — `nix develop .#java25-gradle`
+**Path:** `shells/java25-gradle`
 
-### Programming Languages
+JDK 25 with Gradle 9. `JAVA_HOME` is set automatically. Build with `gradle build`.
 
-| Name | Path                                     | Command                                                                   | Description                                 |
-| ---- | ---------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------- |
-| Rust | [rust](./flakes/language/rust/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/language/rust | Environment for Rust Development            |
-| Dart | [dart](./flakes/language/dart/flake.nix) | nix develop github:sergioia-dev/nix-environments?dir=flakes/language/dart | Environment for Flutter Android Development |
+## Utilities
 
-## Nix Shell
+### Android Emulator — `nix develop .#android-emulator`
+**Path:** `shells/android-emulator`
 
-any available at the moment
+Launches the Android emulator with hardware acceleration. Auto-kills the emulator process when the shell exits. Requires a valid AVD — create one with:
+```bash
+avdmanager create avd -n my_avd -k "system-images;android-36;google_apis;x86_64"
+```

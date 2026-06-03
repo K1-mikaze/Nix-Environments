@@ -28,7 +28,6 @@
 
           shellHook = ''
             echo "Java 25 + gradle development environment"
-            fi
           '';
         };
       }
