@@ -57,6 +57,7 @@
         devShells.default = pkgs.mkShell {
           buildInputs = [
             dockerCompat
+            pkgs.podman-compose
             pkgs.podman
             pkgs.runc
             pkgs.conmon
