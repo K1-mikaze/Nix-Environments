@@ -92,6 +92,7 @@
             if [ -n "$PODMAN_SERVICE_PID" ]; then
               trap "kill $PODMAN_SERVICE_PID 2>/dev/null" EXIT
             fi
+            echo "Podman available in shell"
           '';
         };
       }
