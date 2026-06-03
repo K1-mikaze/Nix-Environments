@@ -34,7 +34,7 @@ Key advantages over traditional `nix-shell`:
 
 ```bash
 nix develop .#<name>                                                         # enter a dev shell
-nix run .#android-emulator                                                            # launch Android emulator
+nix develop .#android-emulator                                                            # launch Android emulator
 nix develop github:sergioia-dev/nix-environments#<name>                      # remote access (no clone)
 ```
 
