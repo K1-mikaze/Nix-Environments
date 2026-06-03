@@ -289,6 +289,44 @@
       },
       "parent": []
     },
+    "java25-grawdle": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./shells/java25-grawdle",
+        "type": "path"
+      },
+      "original": {
+        "path": "./shells/java25-grawdle",
+        "type": "path"
+      },
+      "parent": []
+    },
+    "java25-maven": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./shells/java25-maven",
+        "type": "path"
+      },
+      "original": {
+        "path": "./shells/java25-maven",
+        "type": "path"
+      },
+      "parent": []
+    },
     "mariadb": {
       "inputs": {
         "flake-utils": [
@@ -367,6 +405,8 @@
         "android-emulator": "android-emulator",
         "flake-utils": "flake-utils_2",
         "flutter-android": "flutter-android",
+        "java25-grawdle": "java25-grawdle",
+        "java25-maven": "java25-maven",
         "mariadb": "mariadb",
         "nixpkgs": "nixpkgs",
         "podman": "podman",

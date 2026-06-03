@@ -23,4 +23,12 @@
     name = "rust-minimal";
     path = "./shells/rust-minimal";
   }
+  {
+    name = "java25-maven";
+    path = "./shells/java25-maven";
+  }
+  {
+    name = "java25-grawdle";
+    path = "./shells/java25-grawdle";
+  }
 ]
