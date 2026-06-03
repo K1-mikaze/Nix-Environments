@@ -1,5 +1,5 @@
 {
-  description = "Java 25 grawdle development environment";
+  description = "Java 25 + Maven development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -21,13 +21,13 @@
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             openjdk25
-            gradle_9-unwrapped
+            maven
           ];
 
           JAVA_HOME = "${pkgs.openjdk25.home}";
 
           shellHook = ''
-            echo "Java 25 development environment"
+            echo "Java 25 + Maven development environment"
           '';
         };
       }

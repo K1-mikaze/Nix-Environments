@@ -28,7 +28,7 @@
     path = "./shells/java25-maven";
   }
   {
-    name = "java25-grawdle";
-    path = "./shells/java25-grawdle";
+    name = "java25-gradle";
+    path = "./shells/java25-gradle";
   }
 ]
